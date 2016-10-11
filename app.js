@@ -4,9 +4,11 @@
 
 // Module dependencies.
 var express = require('express'),
-    pug = require('pug'),
     path = require('path'),
+    pug = require('pug'),
     home = require('./routes/home');
+
+var WebSocketServer = require('ws').Server;
 
 var app = express();
 
@@ -26,12 +28,39 @@ var server = app.listen(app.get('port'), app.get('host'), function(){
   }
 );
 
-var count = require('./count.js');
-//var file = __dirname + '/data/dream.txt';
-var file = './data/dream.txt';
-count.start(file, function(results){
-    console.log("results: ",results);
+var wss = new WebSocketServer({
+  server: server
 });
+
+wss.on('connection', function(ws) {
+  ws.on('message', function(message) {
+    console.log("*******",message);
+    var msg = JSON.parse(message);
+    if (msg && msg.startCount) {
+        startCount();
+    }
+  });
+});
+
+var count = require('./count.js');
+function startCount() {
+    var file = './data/dream.txt';
+    count.start(file, function(rawdata){
+        // Recall raw data from EclaisJS is Tuple2[] with {"0":count, "1":word}.
+        // Convert to something the UI can easily use.
+        //console.log("rawdata recieved from ejs: ",JSON.stringify(rawdata));
+        var results = [];
+        rawdata.forEach(function(result){results.push({count:result[0], word:result[1]})});
+        wss.clients.forEach(function(client) {
+            try {
+                // Send the results to the browser
+                client.send(JSON.stringify(results));
+            } catch (e) {
+                console.log(e);
+            }
+        });
+    });
+};
 
 // stop spark  when we stop the node program
 process.on('SIGTERM', function () {

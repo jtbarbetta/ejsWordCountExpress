@@ -6,6 +6,7 @@
   "dependencies": {
     "express": "~4.14.0",
     "eclairjs": "*",
-    "pug": "*"
+    "pug": "*",
+    "ws": "*"
   }
 }
